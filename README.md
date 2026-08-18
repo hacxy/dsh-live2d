@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/dsh-live2d?color=%234B8BF5)](https://www.npmjs.com/package/dsh-live2d)
 [![license MIT](https://img.shields.io/npm/l/dsh-live2d)](https://github.com/hacxy/dsh-live2d/blob/main/LICENSE)
 
-让 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 Web 界面右下角多一只 Live2D 看板娘——带加载进度条的模型、可以随手拖到任意位置，尺寸、位置、透明度、音量……**全部行为都在 Web 设置里点几下就能配**，不用碰任何配置文件。
+让 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 Web 界面右下角多一只 Live2D 看板娘——带加载进度条的模型、可以随手拖到任意位置，尺寸、位置、透明度、音量……**全部行为都在 Web 可视化设置界面进行调整**。
 
 <p align="center">
   <img src="./assets/screenshot.png" alt="dsh-live2d 在 DSH 页面右下角展示 Live2D 角色" width="720" />
@@ -11,13 +11,13 @@
 
 ## 特性
 
-- 🪄 **右下角 Live2D 角色**：默认内置模型（Cubism 6），支持任意 `.model.json`（Cubism 2）与 `.model3.json`（Cubism 6）
-- 📊 **加载进度条**：模型资源下载时显示进度，加载完成自动隐藏
-- ✋ **可拖拽**：拖到屏幕任意位置；不想要拖拽也能关
-- ⚙️ **全量配置 Web 化**：模型地址、尺寸、位置、锚定边、缩放、透明度、层级、音量、日志级别、总开关——13 个字段全部在「设置 → Live2D」里完成，保存即生效，无需重启、无需改文件
-- 🌗 **跟随主题**：面板配色与 DSH 界面（浅色/深色）自动一致
-- 📦 **零依赖安装**：l2d 运行时已打进插件包，用户装完即用
-- 🔒 **配置安全**：多开页面/外部修改冲突时自动刷新为最新值，不会静默互相覆盖
+- **右下角 Live2D 角色**：默认内置模型（Cubism 6），支持任意 `.model.json`（Cubism 2）与 `.model3.json`（Cubism 6）
+- **加载进度条**：模型资源下载时显示进度，加载完成自动隐藏
+- **可拖拽**：拖到屏幕任意位置；不想要拖拽也能关
+- **全量配置 Web 化**：模型地址、尺寸、位置、锚定边、缩放、透明度、层级、音量、日志级别、总开关——13 个字段全部在「设置 → Live2D」里完成，保存即生效，无需重启、无需改文件
+- **跟随主题**：面板配色与 DSH 界面（浅色/深色）自动一致
+- **零依赖安装**：l2d 运行时已打进插件包，用户装完即用
+- **配置安全**：多开页面/外部修改冲突时自动刷新为最新值，不会静默互相覆盖
 
 ## 安装
 
@@ -37,14 +37,14 @@ dsh web
   <img src="./assets/panel.png" alt="Live2D 设置分区" width="720" />
 </p>
 
-| 分组 | 支持配置 |
-|---|---|
+| 分组 | 支持配置                             |
+| ---- | ------------------------------------ |
 | 开关 | 总开关 `enabled`（关闭后不显示角色） |
-| 模型 | 模型地址 `modelUrl` |
-| 外观 | 宽度、高度、透明度、层级 |
-| 位置 | 锚定边（右下/左下）、水平/底部间距 |
-| 渲染 | 模型缩放、动作音量、日志级别 |
-| 交互 | 可拖拽 |
+| 模型 | 模型地址 `modelUrl`                  |
+| 外观 | 宽度、高度、透明度、层级             |
+| 位置 | 锚定边（右下/左下）、水平/底部间距   |
+| 渲染 | 模型缩放、动作音量、日志级别         |
+| 交互 | 可拖拽                               |
 
 几点说明：
 
@@ -69,7 +69,7 @@ dsh plugin --profile web remove dsh-live2d
 ```yaml
 # ~/.dsh/settings.yaml（正常不需要手改，设置面板会代管）
 dsh-live2d:
-  modelUrl: 'https://example.com/model.model3.json'
+  modelUrl: "https://example.com/model.model3.json"
   width: 320
 ```
 
