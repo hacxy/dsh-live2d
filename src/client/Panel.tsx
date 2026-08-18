@@ -148,9 +148,9 @@ const groupStyle: CSSProperties = {
   flexDirection: "column",
   gap: 10,
   padding: "12px 14px",
-  border: "1px solid var(--dsw-alias-border-subtle,#e5e9f0)",
+  border: "1px solid var(--dsw-alias-border-l2)",
   borderRadius: 8,
-  background: "var(--dsw-alias-fill-field,#fbfbfc)",
+  background: "var(--dsw-alias-bg-layer-1)",
 };
 const groupTitleStyle: CSSProperties = {
   margin: 0,
@@ -182,8 +182,8 @@ const selectStyle: CSSProperties = {
   padding: "4px 8px",
   fontSize: 13,
   color: "var(--dsw-alias-label-primary)",
-  background: "var(--dsw-alias-fill-field,#fbfbfc)",
-  border: "1px solid var(--dsw-alias-border-default,#d5dbe3)",
+  background: "var(--dsw-alias-bg-layer-1)",
+  border: "1px solid var(--dsw-alias-border-l2)",
   borderRadius: 6,
 };
 const checkboxRowStyle: CSSProperties = {
@@ -407,7 +407,7 @@ export function Live2dPanel({ scope }: { scope: SettingsScope<Live2dConfig> }): 
                         checked={Boolean(shown[def.key])}
                         disabled={busy}
                         onChange={(event) => updateField(def.key, event.target.checked)}
-                        style={{ margin: 0, accentColor: "var(--dsw-alias-accent-primary,#5b8cff)" }}
+                        style={{ margin: 0, accentColor: "var(--dsw-alias-brand-primary)" }}
                       />
                       <label style={fieldLabelStyle} htmlFor={fieldId(def.key)}>
                         {def.label}

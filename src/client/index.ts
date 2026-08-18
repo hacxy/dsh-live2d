@@ -165,7 +165,7 @@ function buildProgressOverlay(): { overlay: HTMLDivElement; set(loaded: number, 
   const track = document.createElement('div')
   track.style.cssText = 'width:70%;height:4px;border-radius:2px;background:rgba(127,127,127,.35);overflow:hidden'
   const bar = document.createElement('div')
-  bar.style.cssText = 'height:100%;width:0%;border-radius:2px;background:var(--dsw-alias-accent-primary,#5b8cff);transition:width .15s ease'
+  bar.style.cssText = 'height:100%;width:0%;border-radius:2px;background:var(--dsw-alias-brand-primary);transition:width .15s ease'
   track.appendChild(bar)
 
   const label = document.createElement('div')
