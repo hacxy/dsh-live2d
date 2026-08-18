@@ -99,15 +99,6 @@ DEBUG_PORT=9224 node scripts/e2e-verify-v2.mjs
 - **Node half**（`src/index.ts`）：Cordis entry，用 `installSettingsSection`（`@deepseek-ai/dsh-settings`）注册 `dsh-live2d` settings namespace，组合配置作 base 层；schema 同时承担持久层校验。
 - **Browser half**（`src/client/`）：`__ModuleLoader__` CJS bundle。挂件订阅 `ctx.settingsScope` 快照——布局字段原地更新 DOM（不重载模型），渲染字段重建 l2d；设置面板向官方 `settings.section` 注入全字段表单（逐字段 `set`，恢复默认 `unset`）。
 
-## 发布
-
-```sh
-pnpm run build && npm publish   # prepublishOnly 会自动先构建
-```
-
-- **`lib/` 会随仓库一起提交**（`.gitignore` 已放行）——这是 git 安装方式能一行装的前提。
-- `@deepseek-ai/*` 为 optional peerDependencies，官方运行时从 profile 闭包注入，用户端无感。
-
 ## 免责声明
 
 本插件**不包含、不分发任何 Live2D 模型资源**。默认模型 URL 指向模型 CDN，请确认你有权使用所配置的模型（商用需遵循模型许可与 [Live2D Proprietary Software License](https://www.live2d.com/eula/live2d-proprietary-software-license-agreement_en.html)）。
