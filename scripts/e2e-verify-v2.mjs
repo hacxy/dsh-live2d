@@ -102,6 +102,9 @@ for (let i = 0; i < 40; i += 1) {
 report.progressVisibleDuringLoad = sawProgress
 
 // 3. open settings → Live2D section → change model URL → save → widget reloads
+// (the settings entry lives in the sidebar, which starts collapsed)
+await evaluate(`[...document.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === '打开侧边栏')?.click()`)
+await sleep(500)
 await evaluate(`(() => {
   const label = [...document.querySelectorAll('span')].find((s) => (s.textContent ?? '').trim() === '设置')
   const btn = label?.closest('button')
@@ -154,6 +157,69 @@ report.afterSave = await evaluate(`(() => {
 })()`)
 // fix the probe comparison (dataset cleared on re-mount → undefined !== marker)
 report.afterSave.widgetReMounted = await evaluate(`document.querySelector('#dsh-live2d-widget canvas')?.dataset.probe === undefined || document.querySelector('#dsh-live2d-widget canvas')?.dataset.probe !== ${JSON.stringify(canvasBefore)}`)
+
+// 4. width (layout field): save → widget updates in place, no model reload
+await evaluate(`(() => {
+  const input = document.querySelector('#dsh-live2d-width')
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+  setter.call(input, '200')
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  const btn = [...document.querySelectorAll('button')].find((b) => (b.textContent ?? '').trim() === '保存')
+  btn.click()
+})()`)
+await poll(`document.querySelector('#dsh-live2d-width')?.value === '200' && ![...document.querySelectorAll('button')].some((b) => (b.textContent ?? '').trim() === '保存中…')`, 40, 300, 'width save to complete')
+await sleep(800)
+report.afterWidth = await evaluate(`(() => {
+  const w = document.querySelector('#dsh-live2d-widget')
+  return { widthStyle: w?.style.width ?? null }
+})()`)
+
+// 5. anchor (layout field): right → left
+await evaluate(`(() => {
+  const sel = document.querySelector('#dsh-live2d-anchor')
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set
+  setter.call(sel, 'left')
+  sel.dispatchEvent(new Event('change', { bubbles: true }))
+  const btn = [...document.querySelectorAll('button')].find((b) => (b.textContent ?? '').trim() === '保存')
+  btn.click()
+})()`)
+await poll(`document.querySelector('#dsh-live2d-anchor')?.value === 'left' && ![...document.querySelectorAll('button')].some((b) => (b.textContent ?? '').trim() === '保存中…')`, 40, 300, 'anchor save to complete')
+await sleep(800)
+report.afterAnchor = await evaluate(`(() => {
+  const w = document.querySelector('#dsh-live2d-widget')
+  const s = w ? getComputedStyle(w) : null
+  return s ? { left: s.left, right: s.right } : null
+})()`)
+
+// 6. enabled off → widget unmounts (panel stays reachable)
+// (checkbox: React's onChange rides the native click, not a synthetic change)
+await evaluate(`(() => {
+  const input = document.querySelector('#dsh-live2d-enabled')
+  if (!input.checked) input.click()
+  input.click()
+  const btn = [...document.querySelectorAll('button')].find((b) => (b.textContent ?? '').trim() === '保存')
+  btn.click()
+})()`)
+await poll(`document.querySelector('#dsh-live2d-widget') === null && ![...document.querySelectorAll('button')].some((b) => (b.textContent ?? '').trim() === '保存中…')`, 40, 300, 'disable save to complete')
+report.widgetHiddenWhenDisabled = await evaluate(`document.querySelector('#dsh-live2d-widget') === null`)
+
+// 7. reset → user overrides cleared → widget returns with deployment defaults
+await evaluate(`(() => {
+  const btn = [...document.querySelectorAll('button')].find((b) => (b.textContent ?? '').trim() === '恢复默认')
+  if (btn) btn.click()
+  return btn !== undefined
+})()`)
+await poll(`document.querySelector('#dsh-live2d-widget') !== null && ![...document.querySelectorAll('button')].some((b) => (b.textContent ?? '').trim() === '保存中…')`, 60, 300, 'reset to re-mount widget')
+report.afterReset = await evaluate(`(() => {
+  const w = document.querySelector('#dsh-live2d-widget')
+  return {
+    widgetBack: w !== null,
+    widthValue: document.querySelector('#dsh-live2d-width')?.value ?? null,
+    anchorValue: document.querySelector('#dsh-live2d-anchor')?.value ?? null,
+    modelUrlValue: document.querySelector('#dsh-live2d-model-url')?.value ?? null,
+  }
+})()`)
+report.resetRestoredWidget = report.widgetHiddenWhenDisabled === true && report.afterReset.widgetBack === true
 
 const errors = events
   .filter((e) => e.method === 'Runtime.consoleAPICalled' && e.params.type === 'error')

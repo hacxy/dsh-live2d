@@ -1,7 +1,7 @@
 {
   "name": "dsh-live2d",
-  "version": "0.1.0",
-  "description": "DSH web plugin: show a Live2D character at the bottom corner of the DeepSeek Harness web page, with a load progress bar and a settings section for the model URL (powered by l2d). / DSH Web 插件：在 DeepSeek Harness 网页右下角展示 Live2D 角色（加载进度条 + 设置界面可配模型地址，基于 l2d 库）",
+  "version": "0.2.0",
+  "description": "DSH web plugin: show a Live2D character at the bottom corner of the DeepSeek Harness web page, with a load progress bar and a settings section that controls the whole widget behavior (model URL, size, position, scale, opacity, drag, volume, …) through the official settings channel (powered by l2d). / DSH Web 插件：在 DeepSeek Harness 网页右下角展示 Live2D 角色（加载进度条 + 设置界面可配全部挂件行为，走官方 settings 通道，基于 l2d 库）", 
   "author": {
     "name": "Hacxy",
     "email": "hacxy.js@outlook.com"
@@ -54,10 +54,14 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-settings": "^0.1.0-rc.7",
     "@deepseek-ai/schemastery": "^3.18.1"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-settings": {
       "optional": true
     },
     "@deepseek-ai/schemastery": {
@@ -66,11 +70,14 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-ui-primitives": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-ui-settings": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-client-ui-primitives": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-client-ui-settings": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-settings": "^0.1.0-rc.7",
     "@deepseek-ai/schemastery": "^3.18.1",
+    "@deepseek-ai/dsh-client-connection": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-api-remotes": "^0.1.0-rc.7",
     "@types/node": "^22.0.0",
     "@types/react": "~18.3.1",
     "l2d": "^2.1.1",

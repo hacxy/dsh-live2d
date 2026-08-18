@@ -1,44 +1,51 @@
 /**
  * dsh-live2d browser half: mounts the Live2D widget at the bottom corner of
  * the DSH web page, shows a load progress bar, and contributes a Live2D
- * section to Web settings for picking the model URL.
+ * section to Web settings that controls the WHOLE widget behavior.
  *
  * Contract notes:
  * - The bundle is a `window.__ModuleLoader__.load({ id, factory })` artifact;
  *   `apply(ctx)` runs in the browser cordis root.
- * - Static client plugins receive no entry config, so the composed config is
- *   fetched from the host route registered by the Node half; on any failure
- *   the widget still mounts with {@link DEFAULT_CONFIG}.
+ * - Configuration comes from the `dsh-live2d` settings namespace bound through
+ *   `ctx.settingsScope` (registered host-side by the Node half). The widget
+ *   subscribes to the scope snapshot — every committed change (settings panel
+ *   save, external edit of `settings.yaml`, another tab) is reflected live.
+ *   While the namespace is not yet ready (or remote browsers without a
+ *   loopback settings transport), the widget mounts with {@link DEFAULT_CONFIG}.
+ * - Field changes are applied by kind: layout fields (size, position, opacity,
+ *   z-index, anchor, enabled, draggable) update the DOM in place without
+ *   touching the model; render fields (modelUrl, scale, volume, logLevel)
+ *   rebuild the widget so l2d reloads with the new options.
  * - `l2d` and the settings panel are inlined into this bundle at build time;
  *   `react` / `react/jsx-runtime` / `@deepseek-ai/dsh-client-ui-primitives`
- *   resolve from the shell's module table (see tsdown.config.ts).
- * - After the settings panel saves a new model URL, the host persists it into
- *   the profile patch layer and HMR reloads the row; the panel polls GET until
- *   the served config matches, then notifies this module's listeners so the
- *   widget reloads with the new model.
+ *   resolve from the shell's module table (see tsdown.config.ts). Settings
+ *   contract types come from `dsh-client-runtime/client` (type-only).
  *
  * @module dsh-live2d/client
  */
 
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import { createElement } from 'react'
+import type { ClientContext, SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
 // Type-only: pulls the slots Context merge (ctx.slots) through the runtime's client assembly.
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
-// Type-only: pulls the SlotMap merge declaring `settings.section` (ui-settings' contract).
+// Type-only: pulls the SlotMap merge declaring `settings.section` and the
+// `ctx.settingsScope` service merge (ui-settings' contract).
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { init, type L2D } from 'l2d'
 import type { Live2dConfig } from '../shared/config.ts'
 import { DEFAULT_CONFIG } from '../shared/config.ts'
-import { subscribeConfigChange } from './config-events.ts'
 import { Live2dPanel } from './Panel.tsx'
 
 /** Client plugin name (visible in the browser loader entry). */
 export const name = 'dsh-live2d-client'
 
-/** Required services: the slot registry (settings section) — the widget is pure DOM. */
-export const inject = ['slots']
+/** Required services: the settings scope binding needs the connection
+ * transport and the remote event bus (dsh-client-connection); the panel and
+ * widget ride the slots registry and the settingsScope service. */
+export const inject = ['slots', 'settingsScope', 'connection', 'remote']
 
-/** Config route spelled by the Node half. */
-const CONFIG_ROUTE = '/api/dsh-live2d/config'
+/** Settings namespace spelled by the Node half. */
+export const NAMESPACE = 'dsh-live2d'
 
 /** Widget container id, stable for debugging and user CSS. */
 const CONTAINER_ID = 'dsh-live2d-widget'
@@ -46,26 +53,29 @@ const CONTAINER_ID = 'dsh-live2d-widget'
 /** How far the pointer must move before a press becomes a drag. */
 const DRAG_THRESHOLD_PX = 4
 
-/** Fetch the composed config from the host; falls back to defaults. */
-async function fetchConfig(): Promise<Live2dConfig> {
-  try {
-    const response = await fetch(CONFIG_ROUTE, { cache: 'no-store' })
-    if (!response.ok) return DEFAULT_CONFIG
-    const payload = await response.json() as { ok?: boolean; config?: Partial<Live2dConfig> }
-    if (payload.ok !== true || payload.config === undefined) return DEFAULT_CONFIG
-    return { ...DEFAULT_CONFIG, ...payload.config }
-  } catch (error) {
-    console.warn('[dsh-live2d] config fetch failed, using defaults:', error)
-    return DEFAULT_CONFIG
+/** Fields whose change requires rebuilding the l2d instance (reload the model). */
+const RENDER_FIELDS: (keyof Live2dConfig)[] = ['modelUrl', 'scale', 'volume', 'logLevel']
+
+/** Resolve one scope snapshot to a full widget config (defaults on absence). */
+function resolveConfig(snapshot: ReturnType<SettingsScope<Live2dConfig>['getSnapshot']>): Live2dConfig {
+  if (snapshot.status === 'ready' && snapshot.value !== undefined) {
+    return { ...DEFAULT_CONFIG, ...snapshot.value }
   }
+  return { ...DEFAULT_CONFIG }
 }
 
 /* ---------------- widget ---------------------------------------------------- */
 
-/** Apply inline positioning for the anchored corner. */
+/** Apply inline positioning for the anchored corner; the opposite side is
+ * cleared so an anchor flip never leaves the box stretched both ways. */
 function positionContainer(container: HTMLDivElement, config: Live2dConfig, x: number | null, y: number | null): void {
-  if (config.anchor === 'right') container.style.right = `${x ?? config.offsetX}px`
-  else container.style.left = `${x ?? config.offsetX}px`
+  if (config.anchor === 'right') {
+    container.style.right = `${x ?? config.offsetX}px`
+    container.style.left = 'auto'
+  } else {
+    container.style.left = `${x ?? config.offsetX}px`
+    container.style.right = 'auto'
+  }
   container.style.bottom = `${y ?? config.offsetY}px`
 }
 
@@ -81,8 +91,9 @@ function stickContainer(container: HTMLDivElement, left: number, bottom: number)
  * pointer moves it; after a drag it sticks to the pointer's place until the
  * next page reload. A press without movement stays a tap (l2d hit areas keep
  * working — drag only starts after {@link DRAG_THRESHOLD_PX} of travel).
+ * Returns a detacher so the drag can be re-attached when `draggable` flips.
  */
-function attachDrag(container: HTMLDivElement, canvas: HTMLCanvasElement): void {
+function attachDrag(container: HTMLDivElement, canvas: HTMLCanvasElement): () => void {
   let startX = 0
   let startY = 0
   let dragging = false
@@ -124,10 +135,21 @@ function attachDrag(container: HTMLDivElement, canvas: HTMLCanvasElement): void 
   canvas.addEventListener('pointerup', onPointerUp)
   canvas.addEventListener('pointercancel', onPointerUp)
   container.dataset.draggable = 'true'
+
+  return () => {
+    canvas.removeEventListener('pointerdown', onPointerDown)
+    canvas.removeEventListener('pointermove', onPointerMove)
+    canvas.removeEventListener('pointerup', onPointerUp)
+    canvas.removeEventListener('pointercancel', onPointerUp)
+    delete container.dataset.draggable
+  }
 }
 
-/** The mounted widget handle: model + DOM, disposed together. */
+/** The mounted widget handle: model + DOM + drag, disposed together. */
 interface WidgetHandle {
+  container: HTMLDivElement
+  canvas: HTMLCanvasElement
+  setDraggable(draggable: boolean): void
   dispose(): void
 }
 
@@ -168,6 +190,17 @@ function buildProgressOverlay(): { overlay: HTMLDivElement; set(loaded: number, 
   }
 }
 
+/** Apply layout fields onto an already-mounted widget, in place (no reload). */
+function applyLayout(handle: WidgetHandle, config: Live2dConfig): void {
+  const { container } = handle
+  container.style.width = `${config.width}px`
+  container.style.height = `${config.height}px`
+  container.style.opacity = String(config.opacity)
+  container.style.zIndex = String(config.zIndex)
+  positionContainer(container, config, null, null)
+  handle.setDraggable(config.draggable)
+}
+
 /**
  * Mount the widget DOM (container, canvas, progress overlay) and start the
  * model load. Returns a handle whose `dispose()` releases WebGL and DOM.
@@ -176,13 +209,9 @@ function mountWidget(config: Live2dConfig): WidgetHandle {
   const container = document.createElement('div')
   container.id = CONTAINER_ID
   container.style.position = 'fixed'
-  container.style.width = `${config.width}px`
-  container.style.height = `${config.height}px`
-  container.style.opacity = String(config.opacity)
-  container.style.zIndex = String(config.zIndex)
-  // Only the canvas is interactive; the box must not block the UI underneath.
   container.style.pointerEvents = 'none'
-  positionContainer(container, config, null, null)
+  // Only the canvas is interactive; the box must not block the UI underneath.
+  document.body.appendChild(container)
 
   const canvas = document.createElement('canvas')
   canvas.style.display = 'block'
@@ -194,10 +223,20 @@ function mountWidget(config: Live2dConfig): WidgetHandle {
 
   const progress = buildProgressOverlay()
   container.appendChild(progress.overlay)
-  document.body.appendChild(container)
 
   let l2d: L2D | null = null
   let errorTimer: ReturnType<typeof setTimeout> | undefined
+  let detachDrag: (() => void) | null = null
+
+  const setDraggable = (draggable: boolean): void => {
+    if (draggable && detachDrag === null) {
+      detachDrag = attachDrag(container, canvas)
+    } else if (!draggable && detachDrag !== null) {
+      detachDrag()
+      detachDrag = null
+      canvas.style.cursor = 'default'
+    }
+  }
 
   const showError = (message: string): void => {
     progress.overlay.querySelector('div')?.style.setProperty('width', '100%')
@@ -208,6 +247,9 @@ function mountWidget(config: Live2dConfig): WidgetHandle {
     if (errorTimer !== undefined) clearTimeout(errorTimer)
     errorTimer = setTimeout(() => progress.hide(), 4000)
   }
+
+  // Initial layout including the anchored-corner position.
+  applyLayout({ container, canvas, setDraggable, dispose: () => {} }, config)
 
   l2d = init(canvas)
   if (l2d !== null) {
@@ -221,7 +263,7 @@ function mountWidget(config: Live2dConfig): WidgetHandle {
     })
     l2d.on('loaded', () => {
       progress.hide()
-      canvas.style.cursor = config.draggable ? 'grab' : 'default'
+      if (detachDrag !== null) canvas.style.cursor = 'grab'
     })
     void l2d.load({
       path: config.modelUrl,
@@ -234,11 +276,14 @@ function mountWidget(config: Live2dConfig): WidgetHandle {
     })
   }
 
-  if (config.draggable) attachDrag(container, canvas)
-
   return {
+    container,
+    canvas,
+    setDraggable,
     dispose() {
       if (errorTimer !== undefined) clearTimeout(errorTimer)
+      detachDrag?.()
+      detachDrag = null
       try {
         l2d?.destroy()
       } catch (error) {
@@ -251,41 +296,53 @@ function mountWidget(config: Live2dConfig): WidgetHandle {
 }
 
 /**
- * Client plugin body: mount the widget on activation (and reload it when the
- * settings panel changes the model), and register the Live2D settings section.
+ * Client plugin body: bind the settings namespace, mount the widget and keep
+ * it in sync with the namespace snapshot, and register the Live2D settings
+ * section.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  // Widget lifecycle: mount → re-mount on config change → tear down on disposal.
+  // The scope rides this plugin's fiber: disposal unbinds the controller.
+  const scope: SettingsScope<Live2dConfig> = ctx.settingsScope.bind({ namespace: NAMESPACE })
+
+  // Widget lifecycle: sync on every committed snapshot (mount → classify →
+  // in-place layout or rebuild), tear down on disposal.
   ctx.effect(() => {
-    let disposed = false
     let widget: WidgetHandle | null = null
+    let last: Live2dConfig | null = null
 
-    const start = async (): Promise<void> => {
-      if (disposed) return
-      const config = await fetchConfig()
-      if (disposed || !config.enabled) return
-      widget = mountWidget(config)
+    const sync = (): void => {
+      const config = resolveConfig(scope.getSnapshot())
+      if (!config.enabled) {
+        widget?.dispose()
+        widget = null
+        last = null
+        return
+      }
+      const prev = last
+      const current = widget
+      if (prev === null) {
+        widget = mountWidget(config)
+      } else if (RENDER_FIELDS.some((field) => !Object.is(prev[field], config[field]))) {
+        current?.dispose()
+        widget = mountWidget(config)
+      } else if (current !== null) {
+        applyLayout(current, config)
+      }
+      last = config
     }
 
-    const onChange = (): void => {
-      widget?.dispose()
-      widget = null
-      void start()
-    }
-
-    void start()
-    const unsubscribe = subscribeConfigChange(onChange)
-
+    sync()
+    const unsubscribe = scope.subscribe(sync)
     return () => {
-      disposed = true
       unsubscribe()
       widget?.dispose()
       widget = null
+      last = null
     }
   }, 'dsh-live2d: widget')
 
-  // Settings section: the model URL editor, contributed to the settings UI.
+  // Settings section: full widget-behavior editor, contributed to the settings UI.
   ctx.slots.inject('settings.section', () =>
     ctx.slots.register({
       name: 'settings.section',
@@ -293,5 +350,5 @@ export function apply(ctx: ClientContext): void {
       order: 70,
       label: () => 'Live2D',
       inject: () => ({}),
-    }, Live2dPanel))
+    }, () => createElement(Live2dPanel, { scope })))
 }
