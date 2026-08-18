@@ -25,7 +25,8 @@
   ],
   "scripts": {
     "build": "tsdown --config tsdown.config.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build"
   },
   "keywords": [
     "deepseek-harness",
