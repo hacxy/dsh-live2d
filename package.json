@@ -1,7 +1,7 @@
 {
   "name": "dsh-live2d",
-  "version": "0.2.0",
-  "description": "DSH web plugin: show a Live2D character at the bottom corner of the DeepSeek Harness web page, with a load progress bar and a settings section that controls the whole widget behavior (model URL, size, position, scale, opacity, drag, volume, …) through the official settings channel (powered by l2d). / DSH Web 插件：在 DeepSeek Harness 网页右下角展示 Live2D 角色（加载进度条 + 设置界面可配全部挂件行为，走官方 settings 通道，基于 l2d 库）", 
+  "version": "0.1.0",
+  "description": "DSH web plugin: show a Live2D character at the bottom corner of the DeepSeek Harness web page, with a load progress bar and a settings section that controls the whole widget behavior (model URL, size, position, scale, opacity, drag, volume, …) through the official settings channel (powered by l2d). / DSH Web 插件：在 DeepSeek Harness 网页右下角展示 Live2D 角色（加载进度条 + 设置界面可配全部挂件行为，走官方 settings 通道，基于 l2d 库）",
   "author": {
     "name": "Hacxy",
     "email": "hacxy.js@outlook.com"
