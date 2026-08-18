@@ -1,0 +1,28 @@
+# dsh-live2d bundle: mount the host half (config route) and the browser
+# half (the bottom-corner Live2D widget) in one row.
+#
+# The row's `name` is the package itself: the host Loader resolves the Node
+# half through `exports["."]` (lib/index.mjs), while the client-modules node
+# half scans this entry for `dsh.client` and serves the browser half
+# (exports["./client"], lib/client.js) into window.__DSH_BOOT__.
+#
+# Users override these values either in the Web settings (Live2D section) or
+# in their profile's own cordis.patch.yml by id (a patch replaces the WHOLE
+# row config, so restate every key you keep).
+- insert:
+    - id: live2d
+      name: 'dsh-live2d'
+      config:
+        enabled: true
+        modelUrl: 'https://model.hacxy.cn/Mao/Mao.model3.json'
+        width: 280
+        height: 360
+        offsetX: 12
+        offsetY: 12
+        anchor: 'right'
+        scale: 1
+        opacity: 1
+        zIndex: 9999
+        draggable: true
+        volume: 0
+        logLevel: 'warn'

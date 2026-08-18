@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Logs
+*.log
+
+# Editor/OS noise
+.DS_Store
+.idea/
+.vscode/
+
+# NOTE: lib/ (build artifacts) is intentionally COMMITTED — git-hosted installs
+# fetch source and run no build step, so shipped bundles must be in the repo.
